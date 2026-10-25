@@ -3,7 +3,7 @@
   "short_name": "No Se Me Olvida",
   "description": "Recordatorios para compras, la escuela de los hijos y el trabajo.",
   "lang": "es",
-  "id": "./",
+  "id": "no-se-me-olvida-app",
   "start_url": "./",
   "scope": "./",
   "display": "standalone",

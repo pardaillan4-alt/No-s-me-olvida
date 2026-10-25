@@ -1,5 +1,5 @@
 /* Service worker: funciona sin internet y atiende los botones de las notificaciones. */
-const CACHE = 'nso-v2';
+const CACHE = 'nso-v3';
 const CORE = ['./', './index.html', './styles.css', './app.js', './parser.js', './config.js', './manifest.webmanifest', './icon.svg', './icon-192.png', './icon-512.png'];
 
 self.addEventListener('install', (e) => {
