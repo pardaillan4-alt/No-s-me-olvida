@@ -1,0 +1,22 @@
+{
+  "name": "No Se Me Olvida",
+  "short_name": "No Se Me Olvida",
+  "description": "Recordatorios para compras, la escuela de los hijos y el trabajo.",
+  "lang": "es",
+  "id": "./",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "background_color": "#f4f6fb",
+  "theme_color": "#2563eb",
+  "categories": ["productivity", "lifestyle"],
+  "icons": [
+    { "src": "icon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any" },
+    { "src": "icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any maskable" }
+  ],
+  "shortcuts": [
+    { "name": "Lista de compras", "url": "./?tab=compras" },
+    { "name": "Hoy", "url": "./?tab=hoy" }
+  ]
+}

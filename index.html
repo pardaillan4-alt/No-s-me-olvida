@@ -1,0 +1,189 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>No Se Me Olvida</title>
+  <meta name="description" content="Recordatorios para compras, la escuela de los hijos y el trabajo.">
+  <meta name="theme-color" content="#2563eb">
+  <link rel="manifest" href="manifest.webmanifest">
+  <link rel="icon" href="icon.svg" type="image/svg+xml">
+  <link rel="apple-touch-icon" href="icon-192.png">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-title" content="No Se Me Olvida">
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <header class="top">
+    <div class="brand">
+      <img src="icon.svg" alt="" width="32" height="32">
+      <div>
+        <h1>No Se Me Olvida</h1>
+        <p id="today-label" class="muted"></p>
+      </div>
+    </div>
+    <div class="top-actions">
+      <button id="street-btn" class="icon-btn" title="Modo calle: avisarme al llegar a un lugar" aria-label="Modo calle">📍</button>
+      <button id="settings-btn" class="icon-btn" title="Ajustes" aria-label="Ajustes">⚙️</button>
+    </div>
+  </header>
+
+  <div id="banner" class="banner" hidden></div>
+
+  <form id="quick" class="quick" autocomplete="off">
+    <div class="quick-row">
+      <input id="quick-input" type="text" enterkeyhint="done"
+             placeholder="Ej.: leche y pan · tarea de Jesús mañana 7am · junta el jueves a las 4"
+             aria-label="Nuevo recordatorio">
+      <button type="button" id="mic-btn" class="icon-btn mic" title="Dictar" aria-label="Dictar con voz">🎤</button>
+      <button type="submit" class="add-btn" aria-label="Agregar">＋</button>
+    </div>
+    <div id="preview" class="preview" aria-live="polite"></div>
+    <div id="quick-people" class="chips quick-people" hidden></div>
+  </form>
+
+  <nav id="tabs" class="tabs" role="tablist"></nav>
+
+  <main id="view"></main>
+
+  <div id="toast" class="toast" role="status" hidden></div>
+
+  <!-- Editar recordatorio -->
+  <dialog id="edit-dlg">
+    <form method="dialog" id="edit-form">
+      <h2>Recordatorio</h2>
+      <label>Qué
+        <input name="title" required>
+      </label>
+      <div class="grid2">
+        <label>Categoría
+          <select name="cat"></select>
+        </label>
+        <label>Para quién
+          <input name="person" list="people-list" placeholder="(opcional)">
+        </label>
+      </div>
+      <div class="grid2">
+        <label>Día
+          <input type="date" name="date">
+        </label>
+        <label>Hora
+          <input type="time" name="time">
+        </label>
+      </div>
+      <div class="chips" id="date-shortcuts">
+        <button type="button" data-d="0">Hoy</button>
+        <button type="button" data-d="1">Mañana</button>
+        <button type="button" data-d="weekend">Fin de semana</button>
+        <button type="button" data-d="7">En una semana</button>
+        <button type="button" data-d="clear">Sin fecha</button>
+      </div>
+      <div class="grid2">
+        <label>Repetir
+          <select name="repeat">
+            <option value="">No se repite</option>
+            <option value="daily">Todos los días</option>
+            <option value="weekdays">Lunes a viernes</option>
+            <option value="weekly">Cada semana</option>
+            <option value="biweekly">Cada 15 días</option>
+            <option value="monthly">Cada mes</option>
+            <option value="yearly">Cada año</option>
+          </select>
+        </label>
+        <label>Avisarme
+          <select name="lead">
+            <option value="0">A la hora</option>
+            <option value="10">10 min antes</option>
+            <option value="30">30 min antes</option>
+            <option value="60">1 hora antes</option>
+            <option value="120">2 horas antes</option>
+            <option value="1440">1 día antes</option>
+          </select>
+        </label>
+      </div>
+      <label>Notas
+        <textarea name="notes" rows="2" placeholder="Detalles, cantidad, marca…"></textarea>
+      </label>
+      <div class="dlg-extra">
+        <button type="button" id="ics-btn" class="link-btn">📅 Agregar a mi calendario</button>
+        <button type="button" id="share-one-btn" class="link-btn">📤 Compartir</button>
+      </div>
+      <menu>
+        <button type="button" id="delete-btn" class="danger">Eliminar</button>
+        <span class="spacer"></span>
+        <button value="cancel" formnovalidate>Cancelar</button>
+        <button value="save" class="primary">Guardar</button>
+      </menu>
+    </form>
+  </dialog>
+  <datalist id="people-list"></datalist>
+
+  <!-- Ajustes -->
+  <dialog id="settings-dlg">
+    <form method="dialog">
+      <h2>Ajustes</h2>
+
+      <section>
+        <h3>🔔 Avisos</h3>
+        <p class="muted small" id="notif-status"></p>
+        <button type="button" id="notif-btn" class="primary">Activar notificaciones</button>
+        <button type="button" id="test-notif-btn">Probar aviso</button>
+        <label class="row">Tareas sin hora: avisarme a las
+          <input type="time" id="default-time" value="08:00">
+        </label>
+        <label class="row"><input type="checkbox" id="sound-chk" checked> Sonido y vibración</label>
+        <p class="muted small">Consejo: los avisos más seguros son los del calendario del teléfono. En cada recordatorio usa
+          “📅 Agregar a mi calendario” para lo importante (juntas, pagos, citas).</p>
+      </section>
+
+      <section>
+        <h3>👦 Mis hijos</h3>
+        <p class="muted small">Escribe su nombre en cualquier recordatorio (“llevar cartulina de Jesús”) y se asigna solo.
+          “Los niños” o “ambos” cuenta para todos.</p>
+        <ul id="kids-list" class="places"></ul>
+        <div class="grid2">
+          <input id="kid-name" placeholder="Nombre">
+          <button type="button" id="add-kid-btn">Agregar</button>
+        </div>
+      </section>
+
+      <section>
+        <h3>📍 Lugares (modo calle)</h3>
+        <p class="muted small">Guarda tu súper, la escuela o la oficina. Con el modo calle encendido y la app abierta,
+          te aviso al llegar con los pendientes de ese lugar.</p>
+        <ul id="places-list" class="places"></ul>
+        <div class="grid2">
+          <input id="place-name" placeholder="Nombre (ej. Súper)">
+          <select id="place-cat"></select>
+        </div>
+        <button type="button" id="add-place-btn">Guardar mi ubicación actual</button>
+      </section>
+
+      <section>
+        <h3>💾 Copia de seguridad</h3>
+        <p class="muted small">Tus datos se guardan solo en este teléfono. Haz una copia de vez en cuando.</p>
+        <button type="button" id="export-btn">Descargar copia</button>
+        <label class="file-btn">Restaurar copia<input type="file" id="import-file" accept="application/json" hidden></label>
+      </section>
+
+      <section>
+        <h3>❓ Cómo escribir rápido</h3>
+        <ul class="help small">
+          <li><b>leche, pan y huevos</b> → 3 artículos en Compras</li>
+          <li><b>Jesús</b>, <b>Julián</b>, <b>los niños</b> → para quién es (también <b>@nombre</b> para cualquier persona)</li>
+          <li><b>#trabajo</b>, <b>#escuela</b>, <b>#compras</b>, <b>#casa</b> → categoría</li>
+          <li><b>hoy, mañana, el viernes, 15/11, 3 de diciembre</b></li>
+          <li><b>a las 5, 7am, 18:30, en la noche, en 20 minutos</b></li>
+          <li><b>cada lunes, todos los días, entre semana, cada mes</b></li>
+        </ul>
+      </section>
+
+      <menu><span class="spacer"></span><button value="close" class="primary">Listo</button></menu>
+    </form>
+  </dialog>
+
+  <script src="config.js"></script>
+  <script src="parser.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>

@@ -1,0 +1,11 @@
+{
+  "name": "no-se-me-olvida",
+  "version": "1.0.0",
+  "private": true,
+  "description": "App de recordatorios (compras, escuela, trabajo). Sitio estático, sin dependencias.",
+  "type": "commonjs",
+  "scripts": {
+    "test": "node --test tests/*.test.js",
+    "start": "python3 -m http.server 8080"
+  }
+}
