@@ -29,7 +29,7 @@ Se instala en el celular como una app (PWA), funciona **sin internet** y no nece
 La app se publica sola con `.github/workflows/pages.yml` cada vez que se sube algo a `main`:
 primero corre las pruebas y luego actualiza la página.
 
-**Dirección de la app:** https://pardaillan4-alt.github.io/No-s-me-olvida/
+**Dirección de la app:** https://pardaillan4-alt.github.io/No-se-me-olvida/
 
 Activación (una sola vez):
 1. El repositorio debe ser **público** (GitHub Pages gratis lo pide; ver *Privacidad* abajo).
@@ -45,7 +45,7 @@ Activación (una sola vez):
 
 ## Usarla en el celular
 
-1. Abre https://pardaillan4-alt.github.io/No-s-me-olvida/ en el celular:
+1. Abre https://pardaillan4-alt.github.io/No-se-me-olvida/ en el celular:
    - **Android (Chrome):** menú ⋮ → *Instalar app* / *Agregar a pantalla principal*.
    - **iPhone (Safari):** botón Compartir → *Agregar a inicio*. (En iPhone las notificaciones solo funcionan con la app instalada así, iOS 16.4 o más reciente.)
 2. Abre la app, agrega algo con hora y toca **Activar** cuando pregunte por los avisos.
