@@ -101,6 +101,19 @@
           </select>
         </label>
       </div>
+      <fieldset class="extra-alert">
+        <legend>🔔 Aviso extra: ¿qué día te aviso?</legend>
+        <div class="chips" id="remind-days"></div>
+        <div class="grid2">
+          <label>Día del aviso
+            <input type="date" name="rdate">
+          </label>
+          <label>Hora del aviso
+            <input type="time" name="rtime">
+          </label>
+        </div>
+        <p class="muted small" id="remind-hint"></p>
+      </fieldset>
       <label>Notas
         <textarea name="notes" rows="2" placeholder="Detalles, cantidad, marca…"></textarea>
       </label>
@@ -175,6 +188,7 @@
           <li><b>hoy, mañana, el viernes, 15/11, 3 de diciembre</b></li>
           <li><b>a las 5, 7am, 18:30, en la noche, en 20 minutos</b></li>
           <li><b>cada lunes, todos los días, entre semana, cada mes</b></li>
+          <li><b>…, avísame el domingo</b> · <b>avísame un día antes</b> · <b>recuérdamelo el lunes a las 7</b> → aviso en el día que elijas</li>
         </ul>
       </section>
 

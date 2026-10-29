@@ -76,9 +76,7 @@
     return t.hasTime ? d < new Date() : dayDiff(d) < 0;
   }
 
-  function dueLabel(t) {
-    if (!t.due) return null;
-    const d = new Date(t.due);
+  function dayWord(d) {
     const diff = dayDiff(d);
     let day;
     if (diff === 0) day = 'Hoy';
@@ -86,7 +84,22 @@
     else if (diff === -1) day = 'Ayer';
     else if (diff > 1 && diff < 7) day = d.toLocaleDateString('es-MX', { weekday: 'long' });
     else day = fmtDay(d);
-    day = day.charAt(0).toUpperCase() + day.slice(1);
+    return day.charAt(0).toUpperCase() + day.slice(1);
+  }
+
+  // "Dom 1 nov 8:00 a.m." del aviso extra, o null si no hay o ya pasó
+  function remindLabel(t) {
+    if (!t.remindAt || t.done) return null;
+    const r = new Date(t.remindAt);
+    if (t.notifiedExtra === t.remindAt && r < new Date()) return null;
+    return `🔔 ${dayWord(r)} ${fmtTime(r)}`;
+  }
+
+  function dueLabel(t) {
+    if (!t.due) return null;
+    const d = new Date(t.due);
+    const diff = dayDiff(d);
+    const day = dayWord(d);
     const txt = t.hasTime ? `${day} ${fmtTime(d)}` : day;
     const cls = isOverdue(t) ? 'overdue' : diff === 0 ? 'today' : '';
     return { txt: (cls === 'overdue' ? '⚠️ ' : '🕒 ') + txt, cls };
@@ -123,7 +136,8 @@
   const kids = () => state.settings.kids || [];
   // "Jesús y Julián" -> ['Jesús', 'Julián']
   const personsOf = (t) => (t.person ? t.person.split(/\s*,\s*|\s+y\s+/).filter(Boolean) : []);
-  const parseText = (text) => parse(text, { defaultCat: CATS[tab] ? tab : null, kids: kids(), person: quickPerson });
+  const parseText = (text) => parse(text, { defaultCat: CATS[tab] ? tab : null, kids: kids(), person: quickPerson,
+    defaultTime: state.settings.defaultTime });
 
   function addFromText(text) {
     const items = parseText(text);
@@ -140,7 +154,7 @@
         }
       }
       const t = { id: uid(), title: it.title, cat: it.cat, person: it.person || '', notes: '', due: it.due, hasTime: it.hasTime,
-        repeat: it.repeat || '', lead: 0, done: false, createdAt: now + i };
+        repeat: it.repeat || '', lead: 0, remindAt: it.remindAt || null, done: false, createdAt: now + i };
       state.tasks.push(t);
       return t;
     }).filter(Boolean);
@@ -151,7 +165,8 @@
     render();
     const what = added.length > 1 ? `${added.length} artículos` : `“${added[0].title}”`;
     const when = dueLabel(added[0]);
-    toast(`${CATS[cat].icon} ${what} agregado${added.length > 1 ? 's' : ''}${when ? ' · ' + when.txt.slice(2) : ''}`, true);
+    const rem = remindLabel(added[0]);
+    toast(`${CATS[cat].icon} ${what} agregado${added.length > 1 ? 's' : ''}${when ? ' · ' + when.txt.slice(2) : ''}${rem ? ' · aviso ' + rem.slice(2) : ''}`, true);
     maybeAskNotifications(added[0]);
   }
 
@@ -160,7 +175,10 @@
     if (!t) return;
     snapshot();
     if (!t.done && t.repeat && t.due) {
+      const prev = new Date(t.due).getTime();
       t.due = nextOccurrence(t.due, t.repeat, t.hasTime ? new Date() : startOfDay(new Date()));
+      // El aviso extra se mueve igual que el pendiente (p. ej. siempre el domingo antes)
+      if (t.remindAt) { t.remindAt = new Date(new Date(t.remindAt).getTime() + new Date(t.due).getTime() - prev).toISOString(); t.notifiedExtra = null; }
       t.notifiedFor = null;
       save(); render();
       toast(`🔁 Listo. Próxima vez: ${dueLabel(t).txt.slice(2)}`, true);
@@ -179,10 +197,9 @@
   function snooze(id, minutes) {
     const t = byId(id);
     if (!t) return;
-    t.due = new Date(Date.now() + minutes * 60000).toISOString();
-    t.hasTime = true;
-    t.lead = 0;
-    t.notifiedFor = null;
+    // Se pospone solo el aviso; la fecha del pendiente no cambia
+    t.remindAt = new Date(Date.now() + minutes * 60000).toISOString();
+    t.notifiedExtra = null;
     save(); render();
     toast(`⏰ Te vuelvo a avisar en ${minutes} min`);
   }
@@ -221,6 +238,8 @@
     if (due && !t.done) meta.push(`<span class="${due.cls}">${esc(due.txt)}</span>`);
     if (t.person) meta.push(`<span>👤 ${esc(t.person)}</span>`);
     if (t.repeat) meta.push(`<span>🔁 ${REPEAT_LABEL[t.repeat] || ''}</span>`);
+    const rem = remindLabel(t);
+    if (rem) meta.push(`<span>${esc(rem)}</span>`);
     if (t.notes) meta.push(`<span>📝 ${esc(t.notes.length > 40 ? t.notes.slice(0, 40) + '…' : t.notes)}</span>`);
     return `<li class="item${t.done ? ' done' : ''}" style="--cat: var(--c-${esc(t.cat)})" data-id="${t.id}">
       <button class="check" data-act="toggle" aria-label="${t.done ? 'Marcar como pendiente' : 'Marcar como hecho'}">${t.done ? '✓' : ''}</button>
@@ -265,7 +284,12 @@
       </button>`).join('')}</div>`;
     html += urgent.length ? groupsHTML(urgent, { showCat: true })
       : emptyHTML('🎉', 'Nada vencido ni para hoy.<br>Escribe arriba lo que no quieres olvidar.');
-    const tomorrow = pending.filter((t) => bucket(t) === 'tomorrow');
+    const remindToday = pending.filter((t) => t.remindAt && dayDiff(t.remindAt) === 0 && !urgent.includes(t));
+    if (remindToday.length) {
+      html += `<section class="group"><h2><span>🔔 Avisos de hoy</span><span>${remindToday.length}</span></h2>
+        <ul class="list">${remindToday.sort((a, b) => new Date(a.remindAt) - new Date(b.remindAt)).map((t) => itemHTML(t, { showCat: true })).join('')}</ul></section>`;
+    }
+    const tomorrow = pending.filter((t) => bucket(t) === 'tomorrow' && !remindToday.includes(t));
     if (tomorrow.length) html += groupsHTML(tomorrow, { showCat: true });
     if ('Notification' in window && Notification.permission === 'default') {
       html += `<div class="banner" style="margin-top:16px">🔔 Activa los avisos para que te recuerde a la hora.
@@ -390,6 +414,7 @@
     const due = dueLabel(it);
     if (due) pills.push(`<span class="pill">${esc(due.txt)}</span>`);
     if (it.person) pills.push(`<span class="pill">👤 ${esc(it.person)}</span>`);
+    if (it.remindAt) pills.push(`<span class="pill">${esc(remindLabel(it).replace('🔔 ', '🔔 Aviso: '))}</span>`);
     if (it.repeat) pills.push(`<span class="pill">🔁 ${REPEAT_LABEL[it.repeat]}</span>`);
     p.innerHTML = pills.join('');
   }
@@ -420,6 +445,12 @@
       f.date.value = toDateInput(d);
       f.time.value = t.hasTime ? `${pad(d.getHours())}:${pad(d.getMinutes())}` : '';
     } else { f.date.value = ''; f.time.value = ''; }
+    if (t.remindAt) {
+      const r = new Date(t.remindAt);
+      f.rdate.value = toDateInput(r);
+      f.rtime.value = `${pad(r.getHours())}:${pad(r.getMinutes())}`;
+    } else { f.rdate.value = ''; f.rtime.value = ''; }
+    renderRemindDays();
     $('#delete-btn').hidden = !id;
     $('#ics-btn').hidden = !id;
     $('#share-one-btn').hidden = !id;
@@ -436,9 +467,58 @@
       if (f.time.value) { const [h, mi] = f.time.value.split(':').map(Number); dt.setHours(h, mi, 0, 0); hasTime = true; }
       due = dt.toISOString();
     }
+    let remindAt = null;
+    if (f.rdate.value) {
+      const [y, m, d] = f.rdate.value.split('-').map(Number);
+      const [h, mi] = (f.rtime.value || state.settings.defaultTime || '08:00').split(':').map(Number);
+      remindAt = new Date(y, m - 1, d, h, mi).toISOString();
+    }
     return { title: f.title.value.trim(), cat: f.cat.value, person: f.person.value.trim(), notes: f.notes.value.trim(),
-      due, hasTime, repeat: f.repeat.value, lead: parseInt(f.lead.value, 10) || 0 };
+      due, hasTime, repeat: f.repeat.value, lead: parseInt(f.lead.value, 10) || 0, remindAt };
   }
+
+  // Botones de día para el aviso extra: los próximos 7 días por su nombre
+  const WD_SHORT = ['Dom', 'Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb'];
+  function renderRemindDays() {
+    const f = form.elements;
+    const today = startOfDay(new Date());
+    const btns = [];
+    for (let i = 0; i < 7; i++) {
+      const d = new Date(today); d.setDate(d.getDate() + i);
+      const v = toDateInput(d);
+      const label = i === 0 ? 'Hoy' : i === 1 ? 'Mañana' : `${WD_SHORT[d.getDay()]} ${d.getDate()}`;
+      btns.push(`<button type="button" data-rd="${v}" aria-pressed="${f.rdate.value === v}">${label}</button>`);
+    }
+    if (f.date.value) btns.push(`<button type="button" data-rd="before">1 día antes</button>`);
+    if (f.rdate.value) btns.push(`<button type="button" data-rd="clear">Quitar aviso</button>`);
+    $('#remind-days').innerHTML = btns.join('');
+    let hint = 'Opcional. Además del aviso normal, te aviso el día que elijas.';
+    if (f.rdate.value) {
+      const [y, m, d] = f.rdate.value.split('-').map(Number);
+      const [h, mi] = (f.rtime.value || state.settings.defaultTime || '08:00').split(':').map(Number);
+      const r = new Date(y, m - 1, d, h, mi);
+      const day = r.toLocaleDateString('es-MX', { weekday: 'long', day: 'numeric', month: 'long' });
+      hint = r < new Date() ? '⚠️ Esa fecha y hora ya pasaron.' : `Te aviso el ${day} a las ${fmtTime(r)}`.replace(/\.?$/, '.');
+    }
+    $('#remind-hint').textContent = hint;
+  }
+  $('#remind-days').addEventListener('click', (e) => {
+    const b = e.target.closest('button');
+    if (!b) return;
+    const f = form.elements;
+    const v = b.dataset.rd;
+    if (v === 'clear') { f.rdate.value = ''; f.rtime.value = ''; }
+    else if (v === 'before') {
+      const [y, m, d] = f.date.value.split('-').map(Number);
+      f.rdate.value = toDateInput(new Date(y, m - 1, d - 1));
+      if (!f.rtime.value) f.rtime.value = f.time.value || state.settings.defaultTime;
+    } else {
+      f.rdate.value = v;
+      if (!f.rtime.value) f.rtime.value = state.settings.defaultTime || '08:00';
+    }
+    renderRemindDays();
+  });
+  ['rdate', 'rtime', 'date'].forEach((n) => form.elements[n].addEventListener('change', renderRemindDays));
 
   dlg.addEventListener('close', () => {
     if (dlg.returnValue !== 'save') return;
@@ -448,6 +528,7 @@
     if (editingId) {
       const t = byId(editingId);
       if (t.due !== data.due || t.lead !== data.lead || t.hasTime !== data.hasTime) t.notifiedFor = null;
+      if (t.remindAt !== data.remindAt) t.notifiedExtra = null;
       Object.assign(t, data);
     } else {
       state.tasks.push({ id: uid(), ...data, done: false, createdAt: Date.now() });
@@ -472,6 +553,7 @@
   $('#delete-btn').addEventListener('click', () => { const id = editingId; dlg.close('delete'); removeTask(id); });
   $('#ics-btn').addEventListener('click', () => {
     const data = { ...byId(editingId), ...readForm() };
+    if (!data.due && data.remindAt) Object.assign(data, { due: data.remindAt, hasTime: true, remindAt: null });
     if (!data.due) { toast('Primero ponle un día 📅'); return; }
     downloadICS(data);
   });
@@ -507,7 +589,12 @@
       const [h, m] = (state.settings.defaultTime || '08:00').split(':').map(Number);
       trigger = `PT${h * 60 + m - (t.lead || 0)}M`.replace('PT-', '-PT');
     }
-    lines.push('BEGIN:VALARM', 'ACTION:DISPLAY', `DESCRIPTION:${icsEsc(t.title)}`, `TRIGGER:${trigger}`, 'END:VALARM', 'END:VEVENT', 'END:VCALENDAR');
+    lines.push('BEGIN:VALARM', 'ACTION:DISPLAY', `DESCRIPTION:${icsEsc(t.title)}`, `TRIGGER:${trigger}`, 'END:VALARM');
+    if (t.remindAt) {
+      const utc = new Date(t.remindAt).toISOString().replace(/[-:]/g, '').replace(/\.\d+/, '');
+      lines.push('BEGIN:VALARM', 'ACTION:DISPLAY', `DESCRIPTION:${icsEsc(t.title)}`, `TRIGGER;VALUE=DATE-TIME:${utc}`, 'END:VALARM');
+    }
+    lines.push('END:VEVENT', 'END:VCALENDAR');
     const blob = new Blob([lines.join('\r\n')], { type: 'text/calendar;charset=utf-8' });
     const a = document.createElement('a');
     a.href = URL.createObjectURL(blob);
@@ -571,17 +658,25 @@
   function checkReminders() {
     const now = new Date();
     let changed = false;
+    const fire = (t) => {
+      const due = dueLabel(t);
+      const body = [due && due.txt.slice(2).trim(), t.person && '👤 ' + t.person, t.notes].filter(Boolean).join(' · ');
+      notify(`${CATS[t.cat] ? CATS[t.cat].icon : '🔔'} ${t.title}`, body, t.id, true);
+    };
     for (const t of state.tasks) {
-      if (t.done || !t.due || t.notifiedFor === t.due) continue;
+      if (t.done) continue;
+      // Avisos de hace más de 12 h no se disparan uno por uno: se ven en "Vencidos"
+      if (t.remindAt && t.notifiedExtra !== t.remindAt && new Date(t.remindAt) <= now) {
+        t.notifiedExtra = t.remindAt;
+        changed = true;
+        if (now - new Date(t.remindAt) <= 12 * 3600000) fire(t);
+      }
+      if (!t.due || t.notifiedFor === t.due) continue;
       const at = alertTime(t);
       if (at > now) continue;
       t.notifiedFor = t.due;
       changed = true;
-      // Avisos de hace más de 12 h no se disparan uno por uno: se ven en "Vencidos"
-      if (now - at > 12 * 3600000) continue;
-      const due = dueLabel(t);
-      const body = [due && due.txt.slice(2), t.person && '👤 ' + t.person, t.notes].filter(Boolean).join(' · ');
-      notify(`${CATS[t.cat] ? CATS[t.cat].icon : '🔔'} ${t.title}`, body, t.id, true);
+      if (now - at <= 12 * 3600000) fire(t);
     }
     if (changed) { save(); render(); }
   }
@@ -595,7 +690,7 @@
 
   let askedOnce = false;
   function maybeAskNotifications(t) {
-    if (askedOnce || !t.due || !('Notification' in window) || Notification.permission !== 'default') return;
+    if (askedOnce || !(t.due || t.remindAt) || !('Notification' in window) || Notification.permission !== 'default') return;
     askedOnce = true;
     setTimeout(() => toastAction('🔔 ¿Quieres que te avise a la hora?', 'Sí, avísame', askNotifications), 2600);
   }

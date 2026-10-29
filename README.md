@@ -12,6 +12,7 @@ Se instala en el celular como una app (PWA), funciona **sin internet** y no nece
 | 🛒 **Lista del súper** | Casillas grandes para usar en la tienda, “Lo que sueles comprar” para volver a agregar en un toque, **Compartir lista** por WhatsApp |
 | 🎒 **Escuela por hijo** | Escribe *Jesús*, *Julián* o *los niños* (con o sin acento) y se asigna solo; filtra los pendientes de cada uno o toca **Para: 👦 Jesús / 👦 Julián / Los dos** antes de escribir |
 | 🔔 **Avisos** | Notificación a la hora (o antes: 10 min, 1 h, 1 día), con botones *Hecho* y *En 10 min* |
+| 📆 **Aviso el día que elijas** | En cada recordatorio, “Aviso extra”: toca *Dom*, *Lun*… o elige fecha y hora. O escríbelo: `junta el martes a las 8, avísame el domingo` · `avísame un día antes` |
 | 📅 **A tu calendario** | En cada recordatorio: “Agregar a mi calendario” (archivo .ics con alarma). Es el aviso más seguro, aunque la app esté cerrada |
 | 🔁 **Repetir** | `cada martes`, `todos los días`, `entre semana`, `cada mes` |
 | 📍 **Modo calle** | Guarda tu súper, la escuela o la oficina; con la app abierta te avisa al llegar con los pendientes de ese lugar |

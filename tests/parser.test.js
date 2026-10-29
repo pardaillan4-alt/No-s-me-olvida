@@ -122,3 +122,33 @@ test('reconoce a los hijos sin @ y sin acentos', () => {
   // "Jesús" dentro de otra palabra no cuenta
   assert.equal(p('comprar jesusitos de chocolate', { kids })[0].person, null);
 });
+
+test('aviso en un día elegido', () => {
+  // hoy es sábado 24 oct 2026
+  const [a] = p('junta de padres el martes a las 8 de la mañana, avísame el domingo');
+  assert.equal(a.title, 'Junta de padres');
+  assert.deepEqual(local(a.due), [2026, 10, 27, 8, 0]);
+  assert.deepEqual(local(a.remindAt), [2026, 10, 25, 8, 0]); // sin hora: la hora por defecto
+
+  const [b] = p('pagar colegiatura el 5 de noviembre recuérdamelo el lunes a las 7 pm', { defaultTime: '09:30' });
+  assert.deepEqual(local(b.due).slice(0, 3), [2026, 11, 5]);
+  assert.deepEqual(local(b.remindAt), [2026, 10, 26, 19, 0]);
+
+  const [c] = p('entregar reporte el viernes a las 10, avísame un día antes');
+  assert.deepEqual(local(c.remindAt), [2026, 10, 29, 10, 0]);
+
+  const [d] = p('comprar regalo para la maestra avísame el lunes');
+  assert.equal(d.due, null);
+  assert.deepEqual(local(d.remindAt), [2026, 10, 26, 8, 0]);
+  assert.equal(d.title, 'Comprar regalo para la maestra');
+
+  const [e] = p('cita con el dentista el jueves a las 5, avísame a las 3');
+  assert.deepEqual(local(e.remindAt), [2026, 10, 29, 15, 0]);
+});
+
+test('"recuérdame" al inicio es solo relleno', () => {
+  const [a] = p('recuérdame llamar al cliente mañana a las 11');
+  assert.equal(a.title, 'Llamar al cliente');
+  assert.equal(a.remindAt, null);
+  assert.deepEqual(local(a.due), [2026, 10, 25, 11, 0]);
+});

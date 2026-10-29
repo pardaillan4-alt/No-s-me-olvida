@@ -139,6 +139,27 @@
     let s = ' ' + String(input || '').trim() + ' ';
     const out = { cat: null, person: null, repeat: null, date: null, time: null, hasTime: false };
 
+    // "…, avísame el domingo" / "recuérdamelo un día antes": día elegido para el aviso.
+    // Se separa antes que nada para que esa fecha no se confunda con la del pendiente.
+    let remindSpec = null;
+    if (!opts._sub) {
+      const trig = s.match(rx(`[,;]?\\s*(?:y\\s+)?${B}(?:av[ií]s(?:a|e)?me(?:lo|la)?|avisarme|recu[eé]rd(?:a|e)?me(?:lo|la)?|recordarme)${E}(?:\\s+que)?`));
+      if (trig) {
+        const rest = s.slice(trig.index + trig[0].length);
+        const cut = rest.search(/[,;]/);
+        const seg = cut >= 0 ? rest.slice(0, cut) : rest;
+        const before = rx(`^\\s*(\\d+|un|una|dos|tres|cuatro|cinco|seis|siete|media)\\s+(minutos?|horas?|d[ií]as?|semanas?)\\s+antes\\s*$`).exec(seg);
+        const sub = before ? null : parse(seg, Object.assign({}, opts, { _sub: true, kids: [] }));
+        if (before || (sub && sub.due && !sub.title)) {
+          remindSpec = before ? { before: before } : sub;
+          s = s.slice(0, trig.index) + ' ' + rest.slice(seg.length);
+        } else {
+          // "recuérdame comprar pan": la palabra solo es relleno
+          s = s.slice(0, trig.index) + ' ' + rest;
+        }
+      }
+    }
+
     const take = (re, fn) => {
       const m = s.match(re);
       if (!m) return false;
@@ -282,6 +303,32 @@
       if (out.repeat === 'weekdays') while (due.getDay() === 0 || due.getDay() === 6) due = addDays(due, 1);
     }
 
+    if (opts._sub) {
+      return { title: cleanTitle(s), due, hasTime: !!(due && out.hasTime), dateGiven: !!(out.date || relative) };
+    }
+
+    // Día y hora del aviso extra
+    let remindAt = null;
+    const [dh, dm] = String(opts.defaultTime || '08:00').split(':').map(Number);
+    if (remindSpec && remindSpec.before && due) {
+      const n = toNum(remindSpec.before[1]);
+      const unit = remindSpec.before[2].toLowerCase();
+      const r = new Date(due);
+      if (/^min/.test(unit)) r.setMinutes(r.getMinutes() - n);
+      else if (/^h/.test(unit)) r.setTime(r.getTime() - n * 3600000);
+      else {
+        r.setDate(r.getDate() - n * (/^s/.test(unit) ? 7 : 1));
+        if (!out.hasTime) r.setHours(dh, dm, 0, 0);
+      }
+      remindAt = r;
+    } else if (remindSpec && remindSpec.due) {
+      const r = new Date(remindSpec.due);
+      // "avísame a las 6" sin día: ese mismo día del pendiente
+      if (!remindSpec.dateGiven && due) r.setFullYear(due.getFullYear(), due.getMonth(), due.getDate());
+      if (!remindSpec.hasTime) r.setHours(dh, dm, 0, 0);
+      remindAt = r;
+    }
+
     // Título y categoría
     let title = cleanTitle(s);
     // Persona elegida con los botones rápidos de la app
@@ -293,7 +340,8 @@
     // Lo que es de los hijos va a Escuela, salvo que la frase diga otra cosa
     let cat = out.cat || guessCategory(title) || (kidFound ? 'escuela' : null) || opts.defaultCat || 'personal';
 
-    const base = { cat, person: out.person, repeat: out.repeat, due: due ? due.toISOString() : null, hasTime: !!(due && out.hasTime) };
+    const base = { cat, person: out.person, repeat: out.repeat, due: due ? due.toISOString() : null, hasTime: !!(due && out.hasTime),
+      remindAt: remindAt ? remindAt.toISOString() : null };
 
     // Listas de compras: "leche, pan y huevos" -> 3 artículos
     if (cat === 'compras') {

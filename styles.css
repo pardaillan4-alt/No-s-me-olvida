@@ -210,3 +210,7 @@ button.danger { color: var(--danger); }
 .banner button.primary { background: var(--primary); color: var(--primary-ink); border-color: var(--primary); }
 .quick-people { margin: 6px 0 0; }
 .quick-people button[aria-pressed="true"] { background: var(--c-escuela); border-color: var(--c-escuela); color: #fff; }
+.extra-alert { border: 1px solid var(--line); border-radius: 12px; padding: 8px 10px 4px; margin: 0 0 10px; }
+.extra-alert legend { font-size: .85rem; color: var(--text); padding: 0 4px; }
+.extra-alert .chips button[aria-pressed="true"] { background: var(--primary); border-color: var(--primary); color: var(--primary-ink); }
+.extra-alert p { margin: 0 0 6px; }
